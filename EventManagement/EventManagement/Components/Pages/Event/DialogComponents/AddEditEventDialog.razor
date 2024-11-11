@@ -1,0 +1,135 @@
+﻿@using EventManagement.Services.EventService
+@using EventManagement.Services.VenueService
+@using EventManagement.Shared.DataTransferObject
+@inject IEventService myEventServices
+@inject IVenueService venueServices
+
+
+<MudDialog>
+    <DialogContent>
+        <EditForm Model="myEvent" OnValidSubmit="Save">
+            <DataAnnotationsValidator />
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="myEvent.Name" Label="Name" For="@(() => myEvent.Name)" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="myEvent.Description" Label="Description" For="@(() => myEvent.Description)" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="myEvent.StartDate" Label="Start Date" For="@(() => myEvent.StartDate)" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="myEvent.EndDate" Label="End Date" For="@(() => myEvent.EndDate)" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSelect Label="Venue Name" @bind-Value="myEvent.VenueId" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+                        @foreach (var venue in venues)
+                        {
+                            <MudSelectItem T="Guid" Value="@venue.Id">@venue.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="myEvent.Capacity" Label="Capacity" For="@(() => myEvent.Capacity)" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="myEvent.AvailableSeats" Label="Available Seats" For="@(() => myEvent.AvailableSeats)" Variant="Variant.Outlined" />
+                </MudItem>
+            </MudGrid>
+        </EditForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="()=>Save()" Variant="Variant.Filled" Color="Color.Primary">Save</MudButton>
+        <MudButton OnClick="Cancel" Variant="Variant.Filled">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+
+@code {
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public Guid? Id { get; set; }
+
+    [Parameter]
+    public Func<Task> Callback { get; set; }
+
+    public EventDto myEvent = new EventDto();
+    public List<VenueDto> venues = new List<VenueDto>();
+
+    void Cancel() => MudDialog.Cancel();
+
+    protected async override Task OnInitializedAsync()
+    {
+        venues.Clear();
+
+        if (Id.HasValue)
+        {
+            myEvent = await myEventServices.GetEventById(Id.Value);
+        }
+        var result = await venueServices.GetVenueList();
+        if (result == null)
+        {
+            venues = new List<VenueDto>();
+        }
+        else
+        {
+            venues = result.ToList();
+            StateHasChanged();
+        }
+    }
+
+    private async Task Save()
+    {
+        bool isSuccessfull = false;
+
+        if (!Id.HasValue)
+        {
+            var createEvent = new AddEventDto
+                {
+                    Name = myEvent.Name,
+                    Description = myEvent.Description,
+                    StartDate = myEvent.StartDate,
+                    EndDate = myEvent.EndDate,
+                    VenueId = myEvent.VenueId,
+                    Capacity = myEvent.Capacity,
+                    AvailableSeats = myEvent.AvailableSeats,
+
+                };
+
+            var id = await myEventServices.CreateEvent(createEvent);
+
+            isSuccessfull = id != Guid.Empty;
+        }
+        else
+        {
+            var myEventToEdit = new AddEventDto
+                {
+                    Name = myEvent.Name,
+                    Description = myEvent.Description,
+                    StartDate = myEvent.StartDate,
+                    EndDate = myEvent.EndDate,
+                    VenueId = myEvent.VenueId,
+                    Capacity = myEvent.Capacity,
+                    AvailableSeats = myEvent.AvailableSeats,
+                };
+
+            var result = await myEventServices.EditEvent(Id.Value, myEventToEdit);
+
+            if (result != null)
+            {
+                isSuccessfull = true;
+            }
+        }
+
+        if (isSuccessfull) Callback?.Invoke();
+        MudDialog.Close();
+    }
+
+    private string GetVenueNameById(Guid venueId)
+    {
+        return venues.Find(x => x.Id == venueId).Name;
+    }
+}

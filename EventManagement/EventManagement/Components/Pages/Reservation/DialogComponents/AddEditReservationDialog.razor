@@ -1,0 +1,122 @@
+﻿@using EventManagement.Services.EventService
+@using EventManagement.Services.ReservationService
+@using EventManagement.Services.UserService
+@using EventManagement.Shared.DataTransferObject
+@inject IReservationService reservationServices
+@inject IUserService userServices
+@inject IEventService eventServices
+
+
+<MudDialog>
+    <DialogContent>
+        <EditForm Model="reservation" OnValidSubmit="Save">
+            <DataAnnotationsValidator />
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudSelect Label="Event Name" @bind-Value="reservation.EventId" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+                        @foreach(var eventt in events)
+                        {
+                            <MudSelectItem T="Guid" Value="@eventt.Id">@eventt.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSelect Label="User Name" @bind-Value="reservation.UserId" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+                        @foreach (var user in users)
+                        {
+                            <MudSelectItem T="Guid" Value="@user.Id">@user.FullName</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="reservation.NumberOfSeats" Label="Number Of Seats" For="@(() => reservation.NumberOfSeats)" Variant="Variant.Outlined" />
+                </MudItem>
+            </MudGrid>
+        </EditForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="()=>Save()" Variant="Variant.Filled" Color="Color.Primary">Save</MudButton>
+        <MudButton OnClick="Cancel" Variant="Variant.Filled">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+
+@code {
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public Guid? Id { get; set; }
+
+    [Parameter]
+    public Func<Task> Callback { get; set; }
+
+    public ReservationDto reservation = new ReservationDto();
+    public List<EventDto> events = new List<EventDto>();
+    public List<UserDto> users = new List<UserDto>();
+
+    void Cancel() => MudDialog.Cancel();
+
+    protected async override Task OnInitializedAsync()
+    {
+        users.Clear();
+        events.Clear();
+
+        if (Id.HasValue)
+        {
+            reservation = await reservationServices.GetReservationById(Id.Value);
+        }
+        var result2 = await eventServices.GetEventList();
+        var result3 = await userServices.GetUserList();
+        if (result2 == null || result3 == null)
+        {
+            events = new List<EventDto>();
+            users = new List<UserDto>();
+        }
+        else
+        {
+            events = result2.ToList();
+            users = result3.ToList();
+            StateHasChanged();
+        }
+    }
+
+    private async Task Save()
+    {
+        bool isSuccessfull = false;
+
+        if (!Id.HasValue)
+        {
+            var createReservation = new AddReservationDto
+                {
+                    EventId = reservation.EventId,
+                    UserId = reservation.UserId,
+                    NumberOfSeats = reservation.NumberOfSeats
+
+                };
+
+            var id = await reservationServices.CreateReservation(createReservation);
+
+            isSuccessfull = id != Guid.Empty;
+        }
+        else
+        {
+            var reservationToEdit = new AddReservationDto
+                {
+                    EventId = reservation.EventId,
+                    UserId = reservation.UserId,
+                    NumberOfSeats = reservation.NumberOfSeats
+                };
+
+            var result = await reservationServices.EditReservation(Id.Value, reservationToEdit);
+
+            if (result != null)
+            {
+                isSuccessfull = true;
+            }
+        }
+
+        if (isSuccessfull) Callback?.Invoke();
+        MudDialog.Close();
+    }
+}

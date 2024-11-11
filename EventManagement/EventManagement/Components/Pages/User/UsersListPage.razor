@@ -1,0 +1,100 @@
+﻿@page "/users"
+
+@using EventManagement.Components.Pages.User.DialogComponents
+@using EventManagement.Services.UserService
+@using EventManagement.Shared.DataTransferObject
+
+@inject IDialogService dialogsService
+@inject IUserService userServices
+
+@if (isLoadingType)
+{
+    <MudProgressCircular Color="Color.Primary" Style="height:100px; width:100px; position:fixed; top:40%; left:50%;" Indeterminate="true" />
+}
+else
+{
+    <div class="d-flex justify-end flex-grow-1 gap-4 mb-2 mt-4">
+        <MudBreadcrumbs Items="BreadcrumbItems">
+            <ItemTemplate Context="item">
+                <MudLink Href="@item.Href">@item.Text.ToUpper()</MudLink>
+            </ItemTemplate>
+        </MudBreadcrumbs>
+
+        <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="()=>OpenDialog()" Variant="Variant.Outlined" Color="Color.Primary" Class="ml-auto">Add User</MudButton>
+    </div>
+
+    <MudTable Items="users" T="UserDto">
+        <HeaderContent>
+            <MudTh>FullName</MudTh>
+            <MudTh>Email</MudTh>
+            <MudTh>PhoneNumber</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate Context="userContext">
+            <MudTd>@userContext.FullName</MudTd>
+            <MudTd>@userContext.Email</MudTd>
+            <MudTd>@userContext.PhoneNumber</MudTd>
+            <MudTh>
+                <MudButton Variant="Variant.Outlined" OnClick="()=>OpenDialog(userContext.Id)" Class="mr-2" Color="Color.Success">Edit</MudButton>
+                <MudButton Variant="Variant.Outlined" OnClick="()=>Delete(userContext.Id)" Color="Color.Error">Delete</MudButton>
+            </MudTh>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    public bool isLoadingType = true;
+
+    private List<UserDto> users = new List<UserDto>();
+
+    private List<BreadcrumbItem> BreadcrumbItems = new List<BreadcrumbItem>
+    {
+        new BreadcrumbItem("Users", href: "users", disabled: true),
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+        isLoadingType = false;
+        StateHasChanged();
+    }
+
+    private async Task LoadData(/*ToolCategory? category = null*/)
+    {
+        users.Clear();
+
+        var result = await userServices.GetUserList();
+        if (result == null)
+        {
+            users = new List<UserDto>();
+        }
+        else
+        {
+            users = result.ToList();
+            StateHasChanged();
+        }
+    }
+
+    private void OpenDialog(Guid? content = null)
+    {
+        var parameters = new DialogParameters();
+        var callback = async () => { await OnInitializedAsync(); };
+
+        var options = new DialogOptions
+            {
+                CloseOnEscapeKey = true,
+                MaxWidth = MudBlazor.MaxWidth.Large
+            };
+
+        parameters.Add("Id", content);
+        parameters.Add("callback", callback);
+
+        var dialog = dialogsService.Show<AddEditUserDialog>("User details", parameters, options);
+    }
+
+    private async Task Delete(Guid userId)
+    {
+        var result = await userServices.DeleteUser(userId);
+        await OnInitializedAsync();
+    }
+}

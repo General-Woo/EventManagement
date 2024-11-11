@@ -1,0 +1,12 @@
+﻿@page "/"
+
+@inject NavigationManager _navigationManager
+
+<h3>Home</h3>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        _navigationManager.NavigateTo("/reservations", forceLoad: true);
+    }
+}

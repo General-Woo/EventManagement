@@ -1,0 +1,89 @@
+﻿@using EventManagement.Services.VenueService
+@using EventManagement.Shared.DataTransferObject
+@inject IVenueService venueServices
+
+
+<MudDialog>
+    <DialogContent>
+        <EditForm Model="venue" OnValidSubmit="Save">
+            <DataAnnotationsValidator />
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="venue.Name" Label="Name" For="@(() => venue.Name)" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="venue.Address" Label="Address" For="@(() => venue.Address)" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="venue.Capacity" Label="Capacity" For="@(() => venue.Capacity)" Variant="Variant.Outlined" />
+                </MudItem>
+            </MudGrid>
+        </EditForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="()=>Save()" Variant="Variant.Filled" Color="Color.Primary">Save</MudButton>
+        <MudButton OnClick="Cancel" Variant="Variant.Filled">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+
+@code {
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public Guid? Id { get; set; }
+
+    [Parameter]
+    public Func<Task> Callback { get; set; }
+
+    public VenueDto venue = new VenueDto();
+
+    void Cancel() => MudDialog.Cancel();
+
+    protected async override Task OnInitializedAsync()
+    {
+        if (Id.HasValue)
+        {
+            venue = await venueServices.GetVenueById(Id.Value);
+        }
+    }
+
+    private async Task Save()
+    {
+        bool isSuccessfull = false;
+
+        if (!Id.HasValue)
+        {
+            var createVenue = new AddVenueDto
+                {
+                    Name = venue.Name,
+                    Address = venue.Address,
+                    Capacity = venue.Capacity
+                };
+
+            var id = await venueServices.CreateVenue(createVenue);
+
+            isSuccessfull = id != Guid.Empty;
+        }
+        else
+        {
+            var venueToEdit = new AddVenueDto
+                {
+                    Name = venue.Name,
+                    Address = venue.Address,
+                    Capacity = venue.Capacity
+                };
+
+            var result = await venueServices.EditVenue(Id.Value, venueToEdit);
+
+            if (result != null)
+            {
+                isSuccessfull = true;
+            }
+        }
+
+        if (isSuccessfull) Callback?.Invoke();
+        MudDialog.Close();
+    }
+}

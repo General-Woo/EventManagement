@@ -1,0 +1,99 @@
+﻿@page "/venues"
+@using EventManagement.Components.Pages.Venue.DialogComponents
+@using EventManagement.Services.VenueService
+@using EventManagement.Shared.DataTransferObject
+
+@inject IDialogService dialogsService
+@inject IVenueService venueServices
+
+@if (isLoadingType)
+{
+    <MudProgressCircular Color="Color.Primary" Style="height:100px; width:100px; position:fixed; top:40%; left:50%;" Indeterminate="true" />
+}
+else
+{
+    <div class="d-flex justify-end flex-grow-1 gap-4 mb-2 mt-4">
+        <MudBreadcrumbs Items="BreadcrumbItems">
+            <ItemTemplate Context="item">
+                <MudLink Href="@item.Href">@item.Text.ToUpper()</MudLink>
+            </ItemTemplate>
+        </MudBreadcrumbs>
+
+        <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="()=>OpenDialog()" Variant="Variant.Outlined" Color="Color.Primary" Class="ml-auto">Add Venue</MudButton>
+    </div>
+
+    <MudTable Items="venues" T="VenueDto">
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh>Address</MudTh>
+            <MudTh>Capacity</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate Context="venueContext">
+            <MudTd>@venueContext.Name</MudTd>
+            <MudTd>@venueContext.Address</MudTd>
+            <MudTd>@venueContext.Capacity</MudTd>
+            <MudTh>
+                <MudButton Variant="Variant.Outlined" OnClick="()=>OpenDialog(venueContext.Id)" Class="mr-2" Color="Color.Success">Edit</MudButton>
+                <MudButton Variant="Variant.Outlined" OnClick="()=>Delete(venueContext.Id)" Color="Color.Error">Delete</MudButton>
+            </MudTh>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    public bool isLoadingType = true;
+
+    private List<VenueDto> venues = new List<VenueDto>();
+
+    private List<BreadcrumbItem> BreadcrumbItems = new List<BreadcrumbItem>
+    {
+        new BreadcrumbItem("Venues", href: "venues", disabled: true),
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+        isLoadingType = false;
+        StateHasChanged();
+    }
+
+    private async Task LoadData(/*ToolCategory? category = null*/)
+    {
+        venues.Clear();
+
+        var result = await venueServices.GetVenueList();
+        if (result == null)
+        {
+            venues = new List<VenueDto>();
+        }
+        else
+        {
+            venues = result.ToList();
+            StateHasChanged();
+        }
+    }
+
+    private void OpenDialog(Guid? content = null)
+    {
+        var parameters = new DialogParameters();
+        var callback = async () => { await OnInitializedAsync(); };
+
+        var options = new DialogOptions
+            {
+                CloseOnEscapeKey = true,
+                MaxWidth = MudBlazor.MaxWidth.Large
+            };
+
+        parameters.Add("Id", content);
+        parameters.Add("callback", callback);
+
+        var dialog = dialogsService.Show<AddEditVenueDialog>("Venue details", parameters, options);
+    }
+
+    private async Task Delete(Guid venueId)
+    {
+        var result = await venueServices.DeleteVenue(venueId);
+        await OnInitializedAsync();
+    }
+}

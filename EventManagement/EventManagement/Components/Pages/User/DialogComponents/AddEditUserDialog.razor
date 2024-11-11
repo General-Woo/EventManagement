@@ -1,0 +1,89 @@
+﻿@using EventManagement.Services.UserService
+@using EventManagement.Shared.DataTransferObject
+@inject IUserService userServices
+
+
+<MudDialog>
+    <DialogContent>
+        <EditForm Model="user" OnValidSubmit="Save">
+            <DataAnnotationsValidator />
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="user.FullName" Label="Full Name" For="@(() => user.FullName)" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="user.Email" Label="Email" For="@(() => user.Email)" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="user.PhoneNumber" Label="Phone Number" For="@(() => user.PhoneNumber)" Variant="Variant.Outlined" />
+                </MudItem>
+            </MudGrid>
+        </EditForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="()=>Save()" Variant="Variant.Filled" Color="Color.Primary">Save</MudButton>
+        <MudButton OnClick="Cancel" Variant="Variant.Filled">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+
+@code {
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public Guid? Id { get; set; }
+
+    [Parameter]
+    public Func<Task> Callback { get; set; }
+
+    public UserDto user = new UserDto();
+
+    void Cancel() => MudDialog.Cancel();
+
+    protected async override Task OnInitializedAsync()
+    {
+        if (Id.HasValue)
+        {
+            user = await userServices.GetUserById(Id.Value);
+        }
+    }
+
+    private async Task Save()
+    {
+        bool isSuccessfull = false;
+
+        if (!Id.HasValue)
+        {
+            var createUser = new AddUserDto
+                {
+                    FullName = user.FullName,
+                    Email = user.Email,
+                    PhoneNumber = user.PhoneNumber
+                };
+
+            var id = await userServices.CreateUser(createUser);
+
+            isSuccessfull = id != Guid.Empty;
+        }
+        else
+        {
+            var userToEdit = new AddUserDto
+                {
+                    FullName = user.FullName,
+                    Email = user.Email,
+                    PhoneNumber = user.PhoneNumber
+                };
+
+            var result = await userServices.EditUser(Id.Value, userToEdit);
+
+            if (result != null)
+            {
+                isSuccessfull = true;
+            }
+        }
+
+        if (isSuccessfull) Callback?.Invoke();
+        MudDialog.Close();
+    }
+}
